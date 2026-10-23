@@ -21,8 +21,9 @@ build/
 # Local notes & submission drafts (GitHub 비공개 관리)
 prompts/
 
-# Large raw data (메타데이터와 샘플 외 대용량 원본은 필요시 제외)
-# data/raw/*.zip
+# Large raw data (원본 데이터는 로컬 보관, 정제된 data/processed/ 만 버전 관리)
+data/raw/*
+!data/raw/.gitkeep
 
 # OS / Editor
 .DS_Store
