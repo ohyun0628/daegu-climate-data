@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Node / Web (시각화 페이지용)
+node_modules/
+dist/
+build/
+.next/
+
+# Environment & Secrets (공공데이터포털 API 키 등)
+.env
+.env.local
+*.key
+
+# Local notes & submission drafts (GitHub 비공개 관리)
+prompts/
+
+# Large raw data (메타데이터와 샘플 외 대용량 원본은 필요시 제외)
+# data/raw/*.zip
+
+# OS / Editor
+.DS_Store
+Thumbs.db
