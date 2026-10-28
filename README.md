@@ -11,7 +11,7 @@
 - **방법론:**
   1. **검침시차 보정 다중회귀 모델:** 한전 월별 전력판매량의 검침 시차(0.5개월)를 반영한 유효 냉방도일(Effective CDD)·난방도일(HDD) 모델로 9개 구·군 설명력 **$R^2 = 0.905 \sim 0.929$** 달성.
   2. **비선형 폭염 임계점($T^*$) 탐색:** 유효 평균기온 **$19.0 \sim 19.75^\circ\text{C}$ 돌파 시 냉방전력 기울기가 난방 대비 $2.79 \sim 5.89$배 급증**함을 규명 (최대 $R^2 = 0.955$).
-  3. **구·동·건축물 3단계 핀셋 타깃팅:** 9개 구·군 4대 유형 분류 → 법정동 냉방전력 핫스팟 및 75개 행정동 고령·독거노인 결합 → 그린리모델링 우선 도입 공공건축물 Top 20 도출.
+  3. **구·동·건축물 3단계 핀셋 타깃팅:** 9개 구·군 4대 유형 분류 → 법정동 냉방전력 핫스팟 및 9개 구·군 고령화율(2026.09)·75개 행정동 고령·독거노인 결합 → 그린리모델링 우선 도입 공공건축물 Top 20 도출.
 
 ---
 
@@ -27,19 +27,20 @@ daegu-climate-data/
 │   ├── ghg_district_2010_2023.csv                     # 대구·군위군 2010~2023 직·간접 온실가스 전체
 │   ├── ghg_daegu_14yr_structure.csv                   # 구·군별 건물 직접연료 vs 간접전력 장기 구조
 │   ├── dong_senior_vulnerability.csv                  # 75개 행정동 고령·독거노인 취약계층 현황
+│   ├── district_senior_aging.csv                      # 9개 구·군 고령화율 (행정안전부 2026.09)
 │   ├── model_district_climate_sensitivity.csv         # 검침시차 보정 구·군별 기후민감도 회귀 결과
 │   ├── model_threshold_and_sector.csv                 # 비선형 폭염 임계온도(T*) 및 주택/상업 분해
 │   ├── model_district_priority.csv                    # 대구 9개 구·군 4대 유형 및 투자 우선순위
 │   ├── model_dong_cooling_hotspots_top20.csv          # 법정동별 여름 냉방전력 급증 Top 20
 │   └── model_public_building_targets_top20.csv        # 그린리모델링 최우선 공공건축물 Top 20
 ├── src/
-│   ├── preprocess/pipeline.py                         # 11종 원본 공공데이터 통합 전처리 파이프라인
+│   ├── preprocess/pipeline.py                         # 12종 원본 공공데이터 통합 전처리 파이프라인
 │   └── model/
 │       ├── analyze.py                                 # 검침시차 보정 회귀 및 구·동 우선순위 모델링
 │       ├── advanced_ai_analysis.py                    # 직·간접 배출 분리, 임계온도 탐색, 공공건축물 매칭
 │       └── build_dashboard.py                         # 인터랙티브 SVG 지도·차트 대시보드 빌더
 └── docs/
-    ├── data_sources.md                                # [붙임 5] 공공데이터 사용 내역서 (11종)
+    ├── data_sources.md                                # [붙임 5] 공공데이터 사용 내역서 (12종)
     └── submission_checklist.md                        # 제출 서류 체크리스트 및 분석보고서 본문
 ```
 

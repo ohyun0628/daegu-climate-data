@@ -27,6 +27,7 @@ def load_dashboard_payload():
     hotspots = read_csv_dict(PROCESSED_DIR / "model_dong_cooling_hotspots_top20.csv")
     pub_targets = read_csv_dict(PROCESSED_DIR / "model_public_building_targets_top20.csv")
     seniors = read_csv_dict(PROCESSED_DIR / "dong_senior_vulnerability.csv")
+    dist_aging_rows = read_csv_dict(PROCESSED_DIR / "district_senior_aging.csv")
     weather = read_csv_dict(PROCESSED_DIR / "weather_monthly_2020_2026.csv")
     elec_m = read_csv_dict(PROCESSED_DIR / "electricity_district_monthly.csv")
 
@@ -84,6 +85,23 @@ def load_dashboard_payload():
         senior_top[dist].sort(key=lambda x: x["count"], reverse=True)
         senior_top[dist] = senior_top[dist][:5]
 
+    district_aging = []
+    city_total = 0
+    city_senior = 0
+    for r in dist_aging_rows:
+        tot = int(r["total_pop"])
+        sen = int(r["senior_count"])
+        city_total += tot
+        city_senior += sen
+        district_aging.append({
+            "district": r["district"],
+            "total_pop": tot,
+            "senior_count": sen,
+            "share": float(r["senior_share_pct"]),
+        })
+    district_aging.sort(key=lambda x: x["share"], reverse=True)
+    city_aging_share = round(city_senior / city_total * 100.0, 1) if city_total else 0.0
+
     return {
         "priority": priority,
         "sensitivity": sensitivity,
@@ -92,6 +110,8 @@ def load_dashboard_payload():
         "hotspots": hotspots[:12],
         "pub_targets": pub_targets[:12],
         "senior_top": senior_top,
+        "district_aging": district_aging,
+        "city_aging_share": city_aging_share,
         "timeline": monthly_timeline,
         "district_series_gwh": dist_series,
     }
@@ -270,7 +290,7 @@ def generate_html(payload: dict) -> str:
     }}
     .detail-grid {{
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       margin-top: 10px;
     }}
@@ -316,6 +336,7 @@ def generate_html(payload: dict) -> str:
     }}
     @media (max-width: 980px) {{
       .kpi-grid, .grid-map-hero, .grid-2, .grid-equal {{ grid-template-columns: 1fr; }}
+      .detail-grid {{ grid-template-columns: repeat(2, 1fr); }}
     }}
     @media print {{
       body {{ background: #0d1217 !important; color: #eef3f7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 10px; }}
@@ -367,6 +388,7 @@ def generate_html(payload: dict) -> str:
     <div class="callout">
       <strong>핵심 스토리라인:</strong> 대구 건물 온실가스의 <strong>69.0%(중구 74.7%, 달서구 73.3%)는 도시가스가 아닌 '전력(간접배출)'</strong>에서 발생하며,
       비선형 임계점 AI 탐색 결과 유효 평균기온이 <strong>19.0~19.75℃를 넘어서는 순간 냉방 전력 증가율이 난방 대비 최대 5.89배(서구)·3.42배(달서구)</strong>로 꺾여 올라갑니다.
+      행정안전부 2026.09 주민등록 기준 고령화율은 <strong>군위군 50.5% · 서구 30.2% · 남구 28.6%</strong>로 유형 II 도심권과 군위군이 폭염 취약계층 밀집도가 가장 높습니다.
       아래 <strong>대구 9개 구·군 인터랙티브 지도</strong>를 클릭하여 구별 맞춤형 처방과 시계열 추이를 확인해 보세요.
     </div>
 
@@ -442,6 +464,7 @@ def generate_html(payload: dict) -> str:
             <div class="mini-stat"><div class="k">폭염 임계기온 (T*)</div><div class="v" id="selThresh">-</div></div>
             <div class="mini-stat"><div class="k">냉방/난방 민감도 배수</div><div class="v" id="selRatio">-</div></div>
             <div class="mini-stat"><div class="k">주도 냉방 부문</div><div class="v" id="selDominant" style="font-size:12.5px;">-</div></div>
+            <div class="mini-stat"><div class="k">고령화율 (2026.09)</div><div class="v" id="selAging">-</div></div>
           </div>
         </div>
       </div>
@@ -523,33 +546,42 @@ def generate_html(payload: dict) -> str:
       </div>
     </section>
 
+    <section class="panel" style="margin-bottom:22px;">
+      <div class="panel-header">
+        <div class="panel-title">7. 법정동별 여름철(7~8월) 냉방전력 급증 Top 12 핫스팟</div>
+      </div>
+      <p class="panel-caption">2025년 봄·가을(4·5·10월) 대비 여름(7·8월) 초과 전력사용량 및 간접 탄소배출량 상위 법정동</p>
+      <div style="overflow-x:auto;">
+        <table id="hotspotTable">
+          <thead>
+            <tr>
+              <th>순위</th>
+              <th>구·군</th>
+              <th>법정동</th>
+              <th class="num">연간 전력 (MWh)</th>
+              <th class="num">여름 급증률</th>
+              <th class="num">여름 초과전력 (MWh)</th>
+              <th class="num">냉방 탄소배출 (tCO₂eq)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="grid-equal">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">7. 법정동별 여름철(7~8월) 냉방전력 급증 Top 12 핫스팟</div>
+          <div class="panel-title">8. 구·군별 고령화율 (행정안전부 주민등록 2026.09)</div>
         </div>
-        <p class="panel-caption">2025년 봄·가을(4·5·10월) 대비 여름(7·8월) 초과 전력사용량 및 간접 탄소배출량 상위 법정동</p>
-        <div style="overflow-x:auto;">
-          <table id="hotspotTable">
-            <thead>
-              <tr>
-                <th>순위</th>
-                <th>구·군</th>
-                <th>법정동</th>
-                <th class="num">연간 전력 (MWh)</th>
-                <th class="num">여름 급증률</th>
-                <th class="num">여름 초과전력 (MWh)</th>
-                <th class="num">냉방 탄소배출 (tCO₂eq)</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <p class="panel-caption">대구 전체 고령화율 대비 구·군 격차. 서구·남구는 유형 II(도심 폭염민감)와 겹쳐 에너지 복지 우선 대상</p>
+        <div class="chart-box" style="height:250px;">
+          <canvas id="agingChart"></canvas>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">8. 행정동별 고령·독거노인 밀집 Top 5 (쿨루프·무더위쉼터 타깃)</div>
+          <div class="panel-title">9. 행정동별 고령·독거노인 밀집 Top 5 (쿨루프·무더위쉼터)</div>
           <select id="seniorDistSelect">
             <option value="달서구">달서구 (65세 이상 노인인구)</option>
             <option value="북구">북구 (65세 이상 독거노인 1인가구)</option>
@@ -557,7 +589,7 @@ def generate_html(payload: dict) -> str:
             <option value="중구">중구 (주민등록 독거노인)</option>
           </select>
         </div>
-        <p class="panel-caption">폭염 시 냉방 에너지 비용 부담과 온열질환 위험이 동시에 높은 최우선 기후적응 행정동</p>
+        <p class="panel-caption">동별 원본이 있는 달서·북·서·중구. 나머지 5개 구·군은 좌측 구 단위 고령화율을 사용</p>
         <div class="chart-box" style="height:250px;">
           <canvas id="seniorChart"></canvas>
         </div>
@@ -566,7 +598,7 @@ def generate_html(payload: dict) -> str:
 
     <section class="panel" style="margin-bottom:22px;">
       <div class="panel-header">
-        <div class="panel-title">9. 대구시 그린리모델링·쿨루프 최우선 도입 후보 공공건축물 Top 12 (실행 타깃)</div>
+        <div class="panel-title">10. 대구시 그린리모델링·쿨루프 최우선 도입 후보 공공건축물 Top 12 (실행 타깃)</div>
       </div>
       <p class="panel-caption">구·군 기후민감도 우선순위(50%) + 건축물 연면적 규모(30%) + 소재 법정동 여름 전력 급증률(20%) 결합 도출</p>
       <div style="overflow-x:auto;">
@@ -589,7 +621,7 @@ def generate_html(payload: dict) -> str:
     </section>
 
     <footer>
-      <div><strong>활용 공공데이터 출처 (공공누리 제1유형 및 제한없음):</strong> ① 기후에너지환경부 온실가스종합정보센터(GIR) 2025 지역 온실가스 통계(대구·경북, 2010–2023) · ② 기상청 기상자료개방포털 대구(143) 일별 기온자료(2020.01–2026.09) · ③ 한국전력공사 시군구별(2025.01–2026.08) 및 법정동별(2025) 전력판매량 · ④ 대구광역시 공공건축물 현황(2026.09) 및 달서구·북구·서구·중구 노인·독거노인 인구통계</div>
+      <div><strong>활용 공공데이터 출처 (공공누리 제1유형 및 제한없음):</strong> ① 기후에너지환경부 온실가스종합정보센터(GIR) 2025 지역 온실가스 통계(대구·경북, 2010–2023) · ② 기상청 기상자료개방포털 대구(143) 일별 기온자료(2020.01–2026.09) · ③ 한국전력공사 시군구별(2025.01–2026.08) 및 법정동별(2025) 전력판매량 · ④ 대구광역시 공공건축물 현황(2026.09) · ⑤ 행정안전부 주민등록 고령인구현황(2026.09, 9개 구·군) 및 달서구·북구·서구·중구 행정동 노인·독거노인 통계</div>
     </footer>
   </div>
 
@@ -922,7 +954,51 @@ def generate_html(payload: dict) -> str:
       scenarioChart.update();
     }};
 
-    // Senior Vulnerability Chart
+    // District aging rate (MOIS 2026.09) + dong-level senior chart
+    const agingRows = DATA.district_aging || [];
+    const agingMap = Object.fromEntries(agingRows.map(x => [x.district, x]));
+    function agingBarColors(selected) {{
+      return agingRows.map(x => {{
+        if (x.district === selected) return 'rgba(56, 189, 248, 0.95)';
+        if (x.share >= 30) return 'rgba(244, 63, 94, 0.78)';
+        if (x.share >= 25) return 'rgba(245, 158, 11, 0.78)';
+        return 'rgba(16, 185, 129, 0.72)';
+      }});
+    }}
+    const ctxAging = document.getElementById('agingChart').getContext('2d');
+    const agingChart = new Chart(ctxAging, {{
+      type: 'bar',
+      data: {{
+        labels: agingRows.map(x => `${{x.district}} ${{x.share}}%`),
+        datasets: [{{
+          label: '고령화율 (%, 65세 이상 / 총인구)',
+          data: agingRows.map(x => x.share),
+          backgroundColor: agingBarColors('달서구'),
+          borderRadius: 4
+        }}]
+      }},
+      options: {{
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {{
+          legend: {{ labels: {{ color: '#eef3f7' }} }},
+          tooltip: {{
+            callbacks: {{
+              label: (ctx) => {{
+                const row = agingRows[ctx.dataIndex];
+                return `고령화율 ${{row.share}}% · 65세이상 ${{row.senior_count.toLocaleString()}}명 / 총 ${{row.total_pop.toLocaleString()}}명`;
+              }}
+            }}
+          }}
+        }},
+        scales: {{
+          x: {{ ticks: {{ color: '#95a7b8', callback: (v) => v + '%' }}, grid: {{ color: 'rgba(255,255,255,0.06)' }} }},
+          y: {{ ticks: {{ color: '#eef3f7' }}, grid: {{ display: false }} }}
+        }}
+      }}
+    }});
+
     const seniorSelect = document.getElementById('seniorDistSelect');
     const ctx3 = document.getElementById('seniorChart').getContext('2d');
     const initDist = '달서구';
@@ -976,7 +1052,11 @@ def generate_html(payload: dict) -> str:
         document.getElementById('selThresh').textContent = `${{th.optimal_threshold_temp_c || '-'}}℃ (R²=${{th.piecewise_r2 || p.r_squared}})`;
         document.getElementById('selRatio').textContent = `난방 대비 ${{th.heat_vs_cold_sensitivity_ratio || '-'}}배`;
         document.getElementById('selDominant').textContent = `${{th.dominant_cooling_sector || '-'}} (주택 ${{th.residential_cooling_share_pct}}%)`;
+        const ag = agingMap[d];
+        document.getElementById('selAging').textContent = ag ? `${{ag.share}}% (${{ag.senior_count.toLocaleString()}}명)` : '-';
       }}
+      agingChart.data.datasets[0].backgroundColor = agingBarColors(d);
+      agingChart.update();
 
       distSelect.value = d;
       timelineChart.data.datasets[0].data = labels.map(ym => DATA.district_series_gwh[d][ym]);

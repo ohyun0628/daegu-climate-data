@@ -9,6 +9,7 @@
 4. 한국전력공사_산업분류별 법정동별 전력사용량_20251231 (1).csv
 5. 대구광역시_공공건축물 현황_20260903.csv
 6. 구별 노인/독거노인 및 인구 현황 (달서구, 북구, 서구, 중구)
+7. 행정안전부 주민등록 고령 인구현황 (대구 9개 구·군, 2026.09)
 
 출력 (data/processed/):
 1. weather_monthly_2020_2026.csv        : 연·월별 평균/최고기온, 폭염일수(>=33℃), 냉방도일(CDD, 기준 24℃)
@@ -17,6 +18,7 @@
 4. ghg_district_2010_2023.csv          : 대구 광역 및 구·군별 온실가스 배출량 (2010~2023)
 5. district_summary_metrics.csv        : 구·군별 폭염-전력 민감도(여름철 전력 급증률), 건물/전력 비중, 공공건축물 연면적 통합표
 6. dong_senior_vulnerability.csv       : 달서구·북구·서구·중구 행정동별 고령/독거노인 현황 정제 테이블
+7. district_senior_aging.csv           : 행정안전부 주민등록 기준 9개 구·군 고령화율 (2026.09)
 """
 
 import csv
@@ -417,6 +419,65 @@ def process_public_buildings():
     return stats
 
 
+def process_mois_district_senior():
+    """행정안전부 주민등록 고령인구현황 (2026.09, 대구 9개 구·군 전수)."""
+    candidates = list(RAW_DIR.glob("*고령 인구현황*.csv")) + list(RAW_DIR.glob("*고령인구현황*.csv"))
+    if not candidates:
+        raise FileNotFoundError("MOIS 고령 인구현황 CSV not found in data/raw/")
+    rows = read_csv_auto(candidates[0])
+    records = []
+    for r in rows[1:]:
+        if len(r) < 5:
+            continue
+        zone = r[0].strip()
+        if "대구광역시" not in zone:
+            continue
+        m = re.search(r"대구광역시\s+(\S+)\s*\(", zone)
+        if not m:
+            continue
+        dist = m.group(1)
+        if dist not in DAEGU_DISTRICTS:
+            continue
+        tot = int(to_float(r[1]))
+        sen = int(to_float(r[4]))
+        share = round(sen / tot * 100.0, 1) if tot > 0 else 0.0
+        records.append({
+            "district": dist,
+            "total_pop": tot,
+            "senior_count": sen,
+            "senior_male": int(to_float(r[5])) if len(r) > 5 else 0,
+            "senior_female": int(to_float(r[6])) if len(r) > 6 else 0,
+            "senior_share_pct": share,
+            "reference_date": "2026-09",
+        })
+    order = {d: i for i, d in enumerate(DAEGU_DISTRICTS)}
+    records.sort(key=lambda x: order.get(x["district"], 99))
+
+    out_path = PROCESSED_DIR / "district_senior_aging.csv"
+    with open(out_path, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow([
+            "district",
+            "total_pop",
+            "senior_count",
+            "senior_male",
+            "senior_female",
+            "senior_share_pct",
+            "reference_date",
+        ])
+        for rec in records:
+            w.writerow([
+                rec["district"],
+                rec["total_pop"],
+                rec["senior_count"],
+                rec["senior_male"],
+                rec["senior_female"],
+                rec["senior_share_pct"],
+                rec["reference_date"],
+            ])
+    return records
+
+
 def process_dong_senior_vulnerability():
     """Standardize dong-level senior/elderly population CSVs & XLSX (달서구, 북구, 서구, 중구)."""
     records = []
@@ -588,9 +649,11 @@ if __name__ == "__main__":
     ghg = process_ghg_inventory()
     pub = process_public_buildings()
     seniors = process_dong_senior_vulnerability()
+    dist_aging = process_mois_district_senior()
     summary = build_district_summary(elec, ghg, pub)
 
     print("=== [완료] 생성된 전처리 파일 (data/processed/) ===")
     for p in sorted(PROCESSED_DIR.glob("*.csv")):
         print(f" - {p.name} ({p.stat().st_size:,} bytes)")
     print(f" - 동별 고령/독거노인 레코드 수: {len(seniors)}개 행정동")
+    print(f" - 구·군 고령화율 레코드 수: {len(dist_aging)}개 구·군")

@@ -279,6 +279,7 @@ def run_dong_hotspot_analysis():
     """3. 법정동별 여름 전력 급증 상위 핫스팟 및 행정동 고령·독거노인 취약순위 도출."""
     dong_elec = read_csv_dict(PROCESSED_DIR / "electricity_dong_2025.csv")
     seniors = read_csv_dict(PROCESSED_DIR / "dong_senior_vulnerability.csv")
+    dist_aging = read_csv_dict(PROCESSED_DIR / "district_senior_aging.csv")
 
     valid_dongs = [
         {
@@ -329,13 +330,13 @@ def run_dong_hotspot_analysis():
     for dist in by_dist:
         by_dist[dist].sort(key=lambda x: x["senior_count"], reverse=True)
 
-    return valid_dongs[:15], by_dist
+    return valid_dongs[:15], by_dist, dist_aging
 
 
 if __name__ == "__main__":
     reg = run_cdd_regression()
     priority = run_district_clustering_and_priority(reg)
-    top_dongs, senior_by_dist = run_dong_hotspot_analysis()
+    top_dongs, senior_by_dist, dist_aging = run_dong_hotspot_analysis()
 
     print("=== [1] 구·군별 기온(유효 냉방도일 CDD) 회귀모델 및 탄소배출 민감도 우선순위 ===")
     print("순위 | 구군 | 우선점수 | 유형 | CDD기울기(MWh/CDD) | 보정R² | +2℃시 추가CO2(톤) | 여름초과(GWh)")
@@ -353,7 +354,15 @@ if __name__ == "__main__":
             f"(+{d['summer_surge_pct']:5.1f}%) | 냉방탄소: {d['summer_co2_ton']:5.1f} tCO2eq"
         )
 
-    print("\n=== [3] 구별 고령·독거노인 밀집 Top 3 행정동 (쿨루프·무더위쉼터 최우선지) ===")
+    print("\n=== [3] 구·군별 고령화율 (행정안전부 주민등록, 2026.09) ===")
+    aging_sorted = sorted(dist_aging, key=lambda x: float(x["senior_share_pct"]), reverse=True)
+    for r in aging_sorted:
+        print(
+            f" - {r['district']:4s} | 65세이상 {int(r['senior_count']):7,d}명 / "
+            f"총인구 {int(r['total_pop']):8,d}명 | 고령화율 {float(r['senior_share_pct']):4.1f}%"
+        )
+
+    print("\n=== [4] 구별 고령·독거노인 밀집 Top 3 행정동 (쿨루프·무더위쉼터 최우선지) ===")
     for dist, items in senior_by_dist.items():
         top3 = ", ".join(f"{x['dong']}({x['senior_count']:,}명)" for x in items[:3])
         print(f" - {dist}: {top3}")
