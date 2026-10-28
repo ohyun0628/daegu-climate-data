@@ -122,6 +122,11 @@
       border-color: var(--accent);
       font-weight: 700;
     }
+    input[type=range] {
+      accent-color: var(--accent);
+      width: 100%;
+      min-width: 160px;
+    }
     .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
     .chart-box { position: relative; height: 275px; width: 100%; }
     .map-wrap {
@@ -268,6 +273,7 @@
       <strong>핵심 스토리라인:</strong> 대구 건물 온실가스의 <strong>69.0%(중구 74.7%, 달서구 73.3%)는 도시가스가 아닌 '전력(간접배출)'</strong>에서 발생하며,
       비선형 임계점 AI 탐색 결과 유효 평균기온이 <strong>19.0~19.75℃를 넘어서는 순간 냉방 전력 증가율이 난방 대비 최대 5.89배(서구)·3.42배(달서구)</strong>로 꺾여 올라갑니다.
       행정안전부 2026.09 주민등록 기준 고령화율은 <strong>군위군 50.5% · 서구 30.2% · 남구 28.6%</strong>로 유형 II 도심권과 군위군이 폭염 취약계층 밀집도가 가장 높습니다.
+      유형 I 4개 구에서 냉방전력 10%만 줄여도 +2℃ 추가배출의 약 6.8%(약 1.9만 tCO₂eq)를 피할 수 있습니다.
       아래 <strong>대구 9개 구·군 인터랙티브 지도</strong>를 클릭하여 구별 맞춤형 처방과 시계열 추이를 확인해 보세요.
     </div>
 
@@ -397,7 +403,49 @@
 
     <section class="panel" style="margin-bottom:22px;">
       <div class="panel-header">
-        <div class="panel-title">6. 대구 9개 구·군 탄소중립 투자 우선순위 스코어카드 (행 클릭 시 지도·차트 연동)</div>
+        <div class="panel-title">6. 그린리모델링·쿨루프 감축 시뮬레이터</div>
+        <div class="btn-group">
+          <button id="mitBtnType1" class="active" onclick="setMitScope('type1')">유형 I (달서·수성·북·동)</button>
+          <button id="mitBtnType2" onclick="setMitScope('type2')">유형 II (중·남·서)</button>
+          <button id="mitBtnAll" onclick="setMitScope('all')">대구 전체</button>
+          <button id="mitBtnSel" onclick="setMitScope('selected')">선택 구만</button>
+        </div>
+      </div>
+      <p class="panel-caption">쿨루프·고효율 냉방 문헌 기준 10~30% 절감 가정. 여름 초과전력 및 +2℃ 추가배출에 동일 비율 적용 (전력배출계수 0.4594 tCO₂eq/MWh)</p>
+      <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px; flex-wrap:wrap;">
+        <label style="font-size:13px; color:var(--muted); white-space:nowrap;">냉방전력 감축률 <strong id="mitPctLabel" style="color:var(--accent);">10%</strong></label>
+        <input type="range" id="mitPct" min="5" max="30" step="5" value="10" />
+      </div>
+      <div class="kpi-grid" style="margin-bottom:14px;">
+        <div class="kpi-card">
+          <div class="kpi-label">2025 여름 초과전력 감축</div>
+          <div class="kpi-val" id="mitGwh" style="color:var(--success);">-</div>
+          <div class="kpi-sub" id="mitGwhSub">7~8월 초과전력 × 감축률</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">현재 여름 배출 회피</div>
+          <div class="kpi-val" id="mitNowCo2" style="color:var(--accent);">-</div>
+          <div class="kpi-sub">초과전력 × 0.4594 tCO₂eq/MWh</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">+2℃ 추가배출 회피</div>
+          <div class="kpi-val" id="mitPlus2Co2" style="color:var(--warn);">-</div>
+          <div class="kpi-sub">검침시차 보정 회귀 기울기 비례 감축</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">대구 +2℃ 추가배출 대비</div>
+          <div class="kpi-val" id="mitShare" style="color:var(--text);">-</div>
+          <div class="kpi-sub" id="mitShareSub">적용 범위의 회피 비중</div>
+        </div>
+      </div>
+      <div class="chart-box" style="height:250px;">
+        <canvas id="mitChart"></canvas>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-bottom:22px;">
+      <div class="panel-header">
+        <div class="panel-title">7. 대구 9개 구·군 탄소중립 투자 우선순위 스코어카드 (행 클릭 시 지도·차트 연동)</div>
       </div>
       <p class="panel-caption">
         우선순위 점수(100점 만점) = 냉방전력 민감도 기울기(40%) + 여름철 전력 급증률(25%) + 건물전력 비중(20%) + 공공건축물 연면적(15%)
@@ -427,7 +475,7 @@
 
     <section class="panel" style="margin-bottom:22px;">
       <div class="panel-header">
-        <div class="panel-title">7. 법정동별 여름철(7~8월) 냉방전력 급증 Top 12 핫스팟</div>
+        <div class="panel-title">8. 법정동별 여름철(7~8월) 냉방전력 급증 Top 12 핫스팟</div>
       </div>
       <p class="panel-caption">2025년 봄·가을(4·5·10월) 대비 여름(7·8월) 초과 전력사용량 및 간접 탄소배출량 상위 법정동</p>
       <div style="overflow-x:auto;">
@@ -451,7 +499,7 @@
     <section class="grid-equal">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">8. 구·군별 고령화율 (행정안전부 주민등록 2026.09)</div>
+          <div class="panel-title">9. 구·군별 고령화율 (행정안전부 주민등록 2026.09)</div>
         </div>
         <p class="panel-caption">대구 전체 고령화율 대비 구·군 격차. 서구·남구는 유형 II(도심 폭염민감)와 겹쳐 에너지 복지 우선 대상</p>
         <div class="chart-box" style="height:250px;">
@@ -460,7 +508,7 @@
       </div>
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">9. 행정동별 고령·독거노인 밀집 Top 5 (쿨루프·무더위쉼터)</div>
+          <div class="panel-title">10. 행정동별 고령·독거노인 밀집 Top 5 (쿨루프·무더위쉼터)</div>
           <select id="seniorDistSelect">
             <option value="달서구">달서구 (65세 이상 노인인구)</option>
             <option value="북구">북구 (65세 이상 독거노인 1인가구)</option>
@@ -477,7 +525,7 @@
 
     <section class="panel" style="margin-bottom:22px;">
       <div class="panel-header">
-        <div class="panel-title">10. 대구시 그린리모델링·쿨루프 최우선 도입 후보 공공건축물 Top 12 (실행 타깃)</div>
+        <div class="panel-title">11. 대구시 그린리모델링·쿨루프 최우선 도입 후보 공공건축물 Top 12 (실행 타깃)</div>
       </div>
       <p class="panel-caption">구·군 기후민감도 우선순위(50%) + 건축물 연면적 규모(30%) + 소재 법정동 여름 전력 급증률(20%) 결합 도출</p>
       <div style="overflow-x:auto;">
@@ -833,6 +881,84 @@
       scenarioChart.update();
     };
 
+    const EF = 0.4594;
+    let mitScope = 'type1';
+    let mitPct = 10;
+    const plus2City = DATA.priority.reduce((s, r) => s + Number(r.pred_plus2c_co2_ton), 0);
+
+    function mitClusterKey(ct) {
+      if (ct.includes('유형 I:')) return 'type1';
+      if (ct.includes('유형 II:')) return 'type2';
+      if (ct.includes('유형 III:')) return 'type3';
+      return 'type4';
+    }
+    function mitRows() {
+      if (mitScope === 'all') return DATA.priority;
+      if (mitScope === 'selected') return DATA.priority.filter(r => r.district === selectedDist);
+      return DATA.priority.filter(r => mitClusterKey(r.cluster_type) === mitScope);
+    }
+    function fmtTon(v) {
+      return Math.round(v).toLocaleString() + ' tCO₂eq';
+    }
+
+    const ctxMit = document.getElementById('mitChart').getContext('2d');
+    const mitChart = new Chart(ctxMit, {
+      type: 'bar',
+      data: {
+        labels: orderedDistricts,
+        datasets: [{
+          label: '+2℃ 추가배출 회피량 (tCO₂eq)',
+          data: orderedDistricts.map(() => 0),
+          backgroundColor: orderedDistricts.map(() => 'rgba(16, 185, 129, 0.72)'),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#eef3f7' } } },
+        scales: {
+          x: { ticks: { color: '#95a7b8' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+          y: { ticks: { color: '#eef3f7' }, grid: { display: false } }
+        }
+      }
+    });
+
+    window.updateMitigation = function() {
+      const pct = mitPct / 100.0;
+      const rows = mitRows();
+      const applied = new Set(rows.map(r => r.district));
+      const gwh = rows.reduce((s, r) => s + Number(r.cooling_excess_2025_gwh), 0) * pct;
+      const nowCo2 = gwh * 1000.0 * EF;
+      const plus2 = rows.reduce((s, r) => s + Number(r.pred_plus2c_co2_ton), 0) * pct;
+      document.getElementById('mitPctLabel').textContent = mitPct + '%';
+      document.getElementById('mitGwh').textContent = gwh.toFixed(1) + ' GWh';
+      document.getElementById('mitNowCo2').textContent = fmtTon(nowCo2);
+      document.getElementById('mitPlus2Co2').textContent = fmtTon(plus2);
+      document.getElementById('mitShare').textContent = plus2City ? ((plus2 / plus2City) * 100).toFixed(1) + '%' : '-';
+      document.getElementById('mitShareSub').textContent = rows.map(r => r.district).join('·') || '-';
+      mitChart.data.datasets[0].data = orderedDistricts.map(d => applied.has(d) ? Number(prioMap[d].pred_plus2c_co2_ton) * pct : 0);
+      mitChart.data.datasets[0].backgroundColor = orderedDistricts.map(d => {
+        if (!applied.has(d)) return 'rgba(42, 57, 70, 0.55)';
+        if (d === selectedDist) return 'rgba(56, 189, 248, 0.95)';
+        return 'rgba(16, 185, 129, 0.78)';
+      });
+      mitChart.update();
+    };
+    window.setMitScope = function(scope) {
+      mitScope = scope;
+      document.getElementById('mitBtnType1').classList.toggle('active', scope === 'type1');
+      document.getElementById('mitBtnType2').classList.toggle('active', scope === 'type2');
+      document.getElementById('mitBtnAll').classList.toggle('active', scope === 'all');
+      document.getElementById('mitBtnSel').classList.toggle('active', scope === 'selected');
+      updateMitigation();
+    };
+    document.getElementById('mitPct').addEventListener('input', (e) => {
+      mitPct = Number(e.target.value);
+      updateMitigation();
+    });
+
     // District aging rate (MOIS 2026.09) + dong-level senior chart
     const agingRows = DATA.district_aging || [];
     const agingMap = Object.fromEntries(agingRows.map(x => [x.district, x]));
@@ -948,6 +1074,7 @@
       if (DATA.senior_top[d]) {
         updateSeniorChart(d);
       }
+      updateMitigation();
     };
 
     // Initialize default selection
