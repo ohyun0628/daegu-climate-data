@@ -12,6 +12,7 @@
 """
 
 import csv
+import math
 import re
 import xml.etree.ElementTree as ET
 import zipfile
@@ -384,9 +385,64 @@ def run_piecewise_threshold_and_sector_decomposition():
     return results
 
 
+def match_priority_public_buildings():
+    """대구 공공건축물 현황과 법정동 냉방전력 급증·구군 우선순위를 결합하여 그린리모델링 Top 20 도출."""
+    raw_candidates = list(RAW_DIR.glob("*공공건축물*.csv"))
+    if not raw_candidates:
+        return []
+    dong_elec = read_csv_dict(PROCESSED_DIR / "electricity_dong_2025.csv")
+    prio_rows = read_csv_dict(PROCESSED_DIR / "model_district_priority.csv")
+
+    dong_surge = {(r["district"], r["dong"]): float(r["summer_surge_ratio"]) for r in dong_elec}
+    dist_score = {r["district"]: float(r["priority_score"]) for r in prio_rows}
+
+    rows = []
+    for enc in ("cp949", "utf-8-sig", "euc-kr"):
+        try:
+            with open(raw_candidates[0], "r", encoding=enc, newline="") as f:
+                rows = list(csv.reader(f))
+            break
+        except Exception:
+            continue
+
+    candidates = []
+    for r in rows[1:]:
+        if len(r) < 4:
+            continue
+        name, addr, area = r[1].strip(), r[2].strip(), to_float(r[3])
+        if area < 500:
+            continue
+        dist = next((d for d in dist_score if f" {d} " in addr), "")
+        if not dist:
+            continue
+        m_dong = re.search(r"\(([가-힣0-9]+동|[가-힣]+읍|[가-힣]+면)\)", addr)
+        dong = m_dong.group(1) if m_dong else ""
+        surge = dong_surge.get((dist, dong), 1.35)
+        score = round(dist_score[dist] * 0.5 + min(100.0, math.log10(max(10.0, area)) * 20.0) * 0.3 + min(100.0, (surge - 1.0) * 100.0) * 0.2, 1)
+        candidates.append({
+            "district": dist,
+            "dong": dong,
+            "building_name": name,
+            "address": addr,
+            "floor_area_m2": round(area, 1),
+            "dong_summer_surge_pct": round((surge - 1.0) * 100.0, 1),
+            "retrofit_priority_score": score,
+        })
+
+    candidates.sort(key=lambda x: (x["retrofit_priority_score"], x["floor_area_m2"]), reverse=True)
+    out_path = PROCESSED_DIR / "model_public_building_targets_top20.csv"
+    with open(out_path, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["rank", "district", "dong", "building_name", "address", "floor_area_m2", "dong_summer_surge_pct", "retrofit_priority_score"])
+        for i, c in enumerate(candidates[:20], 1):
+            w.writerow([i, c["district"], c["dong"], c["building_name"], c["address"], c["floor_area_m2"], c["dong_summer_surge_pct"], c["retrofit_priority_score"]])
+    return candidates[:20]
+
+
 if __name__ == "__main__":
     records, struct_rows = extract_full_14yr_ghg()
     thresh_results = run_piecewise_threshold_and_sector_decomposition()
+    bldg_targets = match_priority_public_buildings()
 
     print("=== [1] 대구 광역 온실가스 14년(2010~2023) 건물 직접(연료) vs 간접(전력) 구조 변화 ===")
     for r in struct_rows:
