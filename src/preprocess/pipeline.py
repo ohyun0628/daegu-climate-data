@@ -227,6 +227,8 @@ def process_kepco_district(weather_monthly: dict):
             for col_idx, mo in month_cols:
                 if col_idx < len(r) and r[col_idx] != "":
                     kwh = to_float(r[col_idx])
+                    if int(yr) == 2026 and mo > 8:
+                        continue
                     ym = f"{yr}-{mo:02d}"
                     w_info = weather_monthly.get(ym, {})
                     d = max(1, w_info.get("days", 1))
