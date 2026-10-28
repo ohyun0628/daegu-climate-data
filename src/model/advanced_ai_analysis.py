@@ -410,7 +410,7 @@ def match_priority_public_buildings():
         if len(r) < 4:
             continue
         name, addr, area = r[1].strip(), r[2].strip(), to_float(r[3])
-        if area < 500:
+        if area < 500 or "주차장" in name:
             continue
         dist = next((d for d in dist_score if f" {d} " in addr), "")
         if not dist:

@@ -25,6 +25,7 @@ def load_dashboard_payload():
     threshold = read_csv_dict(PROCESSED_DIR / "model_threshold_and_sector.csv")
     ghg_14yr = read_csv_dict(PROCESSED_DIR / "ghg_daegu_14yr_structure.csv")
     hotspots = read_csv_dict(PROCESSED_DIR / "model_dong_cooling_hotspots_top20.csv")
+    pub_targets = read_csv_dict(PROCESSED_DIR / "model_public_building_targets_top20.csv")
     seniors = read_csv_dict(PROCESSED_DIR / "dong_senior_vulnerability.csv")
     weather = read_csv_dict(PROCESSED_DIR / "weather_monthly_2020_2026.csv")
     elec_m = read_csv_dict(PROCESSED_DIR / "electricity_district_monthly.csv")
@@ -89,6 +90,7 @@ def load_dashboard_payload():
         "threshold": threshold,
         "ghg_14yr": ghg_by_dist,
         "hotspots": hotspots[:12],
+        "pub_targets": pub_targets[:12],
         "senior_top": senior_top,
         "timeline": monthly_timeline,
         "district_series_gwh": dist_series,
@@ -554,6 +556,30 @@ def generate_html(payload: dict) -> str:
       </div>
     </section>
 
+    <section class="panel" style="margin-bottom:22px;">
+      <div class="panel-header">
+        <div class="panel-title">9. 대구시 그린리모델링·쿨루프 최우선 도입 후보 공공건축물 Top 12 (실행 타깃)</div>
+      </div>
+      <p class="panel-caption">구·군 기후민감도 우선순위(50%) + 건축물 연면적 규모(30%) + 소재 법정동 여름 전력 급증률(20%) 결합 도출</p>
+      <div style="overflow-x:auto;">
+        <table id="pubTargetTable">
+          <thead>
+            <tr>
+              <th>순위</th>
+              <th>구·군</th>
+              <th>법정동</th>
+              <th>공공건축물 명칭</th>
+              <th>도로명 소재지</th>
+              <th class="num">연면적 (㎡)</th>
+              <th class="num">해당 동 여름 전력급증</th>
+              <th class="num">그린리모델링 타깃점수</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
     <footer>
       <div><strong>활용 공공데이터 출처 (공공누리 제1유형 및 제한없음):</strong> ① 기후에너지환경부 온실가스종합정보센터(GIR) 2025 지역 온실가스 통계(대구·경북, 2010–2023) · ② 기상청 기상자료개방포털 대구(143) 일별 기온자료(2020.01–2026.09) · ③ 한국전력공사 시군구별(2025.01–2026.08) 및 법정동별(2025) 전력판매량 · ④ 대구광역시 공공건축물 현황(2026.09) 및 달서구·북구·서구·중구 노인·독거노인 인구통계</div>
     </footer>
@@ -685,6 +711,23 @@ def generate_html(payload: dict) -> str:
         <td class="num">${{Number(h.summer_co2_ton).toFixed(1)}}</td>
       `;
       hbody.appendChild(tr);
+    }});
+
+    // Populate Public Building Retrofit Target Table
+    const pbody = document.querySelector('#pubTargetTable tbody');
+    (DATA.pub_targets || []).forEach(b => {{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${{b.rank}}</strong></td>
+        <td>${{b.district}}</td>
+        <td>${{b.dong}}</td>
+        <td><strong>${{b.building_name}}</strong></td>
+        <td style="color:#95a7b8;">${{b.address}}</td>
+        <td class="num">${{Number(b.floor_area_m2).toLocaleString()}}</td>
+        <td class="num" style="color:#f59e0b;">+${{Number(b.dong_summer_surge_pct).toFixed(1)}}%</td>
+        <td class="num"><strong style="color:#38bdf8;">${{Number(b.retrofit_priority_score).toFixed(1)}}점</strong></td>
+      `;
+      pbody.appendChild(tr);
     }});
 
     // Setup GHG 14-year Chart
